@@ -1,2 +1,9 @@
-COCO-format/*
-YOLO-format/*
+*
+
+# except these files
+!.gitignore
+!labels_conversion.py
+!COCO-format/test-coco-1
+!COCO-format/test-coco-1/*
+!YOLO-format/test-1
+!YOLO-format/test-1/*

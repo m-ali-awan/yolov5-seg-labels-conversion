@@ -24,7 +24,7 @@ def return_ann_list(image_id,coco_ann_df):
 
 
 def saving_for_src_images(src_df,annotations_df,
-                          src_root,none_or_not,yolo_root,split):
+                          src_root,none_or_not,yolo_root,split,increment_by_one=False):
 
   valid_splits={'train','valid','test'}
   if split not in valid_splits:
@@ -49,7 +49,11 @@ def saving_for_src_images(src_df,annotations_df,
       dest_name = f"{yolo_root}/{split}/labels/{filename.split('.jpeg')[0]}.txt"
     file_obj = open(str(dest_name),'a')
     for ann in ann_l:
-      curr_cat = ann['category_id']
+      
+      if increment_by_one:
+        curr_cat = ann['category_id'] - 1
+      else:
+        curr_cat = ann['category_id']
       file_obj.write(f"{curr_cat} ")
       for cnt,one_seg in enumerate(ann['segmentation'][0]):
 
@@ -73,7 +77,7 @@ def saving_for_src_images(src_df,annotations_df,
 
 
   print('---------------SUCCESS-------------')
-  print(yolo_root)
+  #print(yolo_root)
     
 
 
@@ -82,16 +86,34 @@ def saving_for_src_images(src_df,annotations_df,
 def convert_to_yolo_seg_labels(coco_labels_pth,
                                 yolo_labels_root_pth,
                                 images_src_pth=None,
-                                selected_labels=None,
                                 train_percent=0.7,
                                 val_percent=0.20,
-                                test_percent=0.1):
-  # We expect the coco labels in this format:
-  # root_dir/labels.json
-  # root_dir/data/.....
-  # images_src_pth will be None, if we have COCO format data, and images are under 'data'
-  # forlder in same tree level as labels.json
+                                increment_by_one=False):
 
+  '''
+  
+  Takes COCO format Instance segmentation labels, and images, and save YOLO format labels, in Train, Val, and Test splits, at desired folder
+
+  ********
+ 
+  Keyword Arguments:  
+
+  ********
+  coco_labels_pth: type= str | pathlib.Path; required.  the labels json file of COCO format instance segmentation labels
+  
+  yolo_labels_root_pth: type= str | pathlib.Path; required.  The Directory, where you want to store YOLO-Seg format labels. It can/can't exist
+  
+  images_src_pth: Optional , if not passed, it means Src images are stored in "data" folder, at same level where labels json file was present.
+  Anyway, it is good to pass the path of images, to avoid confusion
+
+  train_percent: type: float; required Percentage of data to put in Train Split
+
+  val_percent: type: float; required Percentage of data to put in Val Split. Based on Train, and Val, Test split will be calculated
+
+  increment_by_one type: bool; If COCO-labels Categories id start with 1, then it should be True, as we need to subtract 1 from CAT-Ids for YOLO format
+  As they should start from 0
+  
+  '''
   if images_src_pth==None:
     images_root= coco_labels_pth.parent
   else:
@@ -99,6 +121,7 @@ def convert_to_yolo_seg_labels(coco_labels_pth,
 
 
   yolo_labels_root_pth=Path(yolo_labels_root_pth)
+  yolo_labels_root_pth.mkdir(exist_ok=True,parents=True)
   
 
   yolo_train_pth = yolo_labels_root_pth/'train'
@@ -122,15 +145,18 @@ def convert_to_yolo_seg_labels(coco_labels_pth,
   saving_for_src_images(coco_train_df,coco_ann_df,
                         images_root,images_src_pth,
                         yolo_labels_root_pth,
-                        'train')
+                        'train',increment_by_one)
+  print('Data and labels for Train Saved')
   saving_for_src_images(coco_valid_df,coco_ann_df,
                         images_root,images_src_pth,
                         yolo_labels_root_pth,
-                        'valid')
+                        'valid',increment_by_one)
+  print('Data and labels for Validation Saved')
   saving_for_src_images(coco_test_df,coco_ann_df,
                         images_root,images_src_pth,
                         yolo_labels_root_pth,
-                        'test')
+                        'test',increment_by_one)
+  print('Data and labels for Test Saved')
 
   # Now saving data.yaml
   selected_labels=[i['name'] for i in coco_annotations['categories']]
@@ -146,8 +172,8 @@ def convert_to_yolo_seg_labels(coco_labels_pth,
   yaml_obj.write(f'nc: {len(selected_labels)} \n')
   yaml_obj.write(f'train: {yolo_labels_root_pth}/train/images \n')
   yaml_obj.write(f'val: {yolo_labels_root_pth}/valid/images \n')
-
-
+  yaml_obj.write(f'test: {yolo_labels_root_pth}/test/images \n')
+ 
 
   yaml_obj.close()
 
